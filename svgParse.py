@@ -1,6 +1,9 @@
 import xml.etree.ElementTree as ET
 import re
 import math
+from PIL import Image
+import numpy as np
+import scipy.misc as smp
 
 def splitPathStringList(concatString):
 	endPattern = re.compile('[Zz]')
@@ -110,7 +113,7 @@ def getCtrlAForShortBezier(prevCommand, prevCoordinates):
 
 def getPathFromCommandList(commandList):
 	myPath = []
-	lineRate = 1
+	lineRate = 100
 	for i in range(len(commandList)):
 		command, floatList = commandList[i]
 		prevX, prevY = myPath[-1] if i > 0 else (0,0)
@@ -181,7 +184,22 @@ def drawAscii(paths):
 			print(char, end='')
 		print('')
 
+def drawImage(paths):
+	size = 1000
+	factor = 10
+	data = np.zeros((1000,2500,3), dtype=np.uint8)
+
+	for path in paths:
+		for coord in path:
+			x = int(coord[0] * factor)
+			y = int(coord[1] * factor)
+			if y < len(data) and x < len(data[0]):
+				data[y][x] = [255, 255, 255]
+
+	img = Image.fromarray(data)
+	img.save('output.png')
+
 pathStrings = getSvgPathStrings('lol.svg')
 commandLists = [getPathCommandList(path) for path in pathStrings]
 myList = [getPathFromCommandList(commandList) for commandList in commandLists]
-drawAscii(myList)
+drawImage(myList)
