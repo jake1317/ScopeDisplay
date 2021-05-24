@@ -111,14 +111,11 @@ def getCtrlAForShortBezier(prevCommand, prevCoordinates):
 		prevCtrlB = (prevEnd[0] - floatList[2] + floatList[0], prevEnd[1] - floatList[3] + floatList[1])
 	return ((2 * prevEnd[0]) - prevCtrlB[0], (2 * prevEnd[1]) - prevCtrlB[1])
 
-def getPathFromCommandList(commandList):
+def getPathFromCommandList(commandList, lineRate):
 	myPath = []
-	lineRate = 100
 	for i in range(len(commandList)):
 		command, floatList = commandList[i]
 		prevX, prevY = myPath[-1] if i > 0 else (0,0)
-		if command == ' ':
-			print("Whhhaaattt", commandList[i])
 		if command == 'M':
 			myPath.append((floatList[0], floatList[1]))
 		elif command == 'm': # should actually be a new path, but don't want to deal rn
@@ -170,6 +167,40 @@ def getPathFromCommandList(commandList):
 			return []
 	return myPath
 
+def addConnector(end, start, path, lineRate):
+	connectingLine = getLine(end, start, lineRate)
+	if len(connectingLine) > 2:
+		connectingLine = connectingLine[1:-1]
+	path.extend(connectingLine)
+
+def findShortestConnector(pathA, pathB, interval = 100):
+	best = (pathA[0], pathB[0], getDistance(pathA[0], pathB[0]))
+	for iA in range(int(len(pathA)/interval)):
+		for iB in range(int(len(pathB)/interval)):
+			distance = getDistance(pathA[iA * interval], pathB[iB * interval])
+			if distance < best[2]:
+				best = (pathA[iA * interval], pathB[iB * interval], distance)
+	return best
+
+def getPathCenters(paths):
+	pathCenters = []
+	for path in paths:
+		xSum = 0;
+		ySum = 0;
+		for point in path:
+			xSum = xSum + point[0]
+			ySum = ySum + point[1]
+		pathCenters.append(((xSum/len(path), ySum/len(path)), path))
+
+def connectPaths(paths, lineRate):
+	centers = getPathCenters(paths)
+	myPath = paths[0]
+	for i in range(1, len(paths)):
+		best = findShortestConnector(paths[i-1], paths[i])
+		addConnector(best[0], best[1], myPath, lineRate)
+		myPath.extend(paths[i])
+	return myPath
+
 def drawAscii(paths):
 	factor = 1
 	canvas = [[' ' for i in range(250 * factor)] for j in range(100 * factor)]
@@ -201,5 +232,5 @@ def drawImage(paths):
 
 pathStrings = getSvgPathStrings('lol.svg')
 commandLists = [getPathCommandList(path) for path in pathStrings]
-myList = [getPathFromCommandList(commandList) for commandList in commandLists]
-drawImage(myList)
+myList = [getPathFromCommandList(commandList, 100) for commandList in commandLists]
+drawImage([connectPaths(myList, 100)])
