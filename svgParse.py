@@ -4,6 +4,9 @@ import math
 from PIL import Image
 import numpy as np
 import scipy.misc as smp
+import wave
+import random
+import struct
 
 def splitPathStringList(concatString):
 	endPattern = re.compile('[Zz]')
@@ -22,7 +25,7 @@ def splitPathStringList(concatString):
 def getSvgPathStrings(fd):
 	pathString = ""
 	for path in ET.parse(fd).getroot()[0]:
-		pathString = pathString + path.attrib['d']	
+		pathString += path.attrib['d']	
 	return splitPathStringList(pathString)
 
 def parseFloatList(floatString):
@@ -182,18 +185,30 @@ def findShortestConnector(pathA, pathB, interval = 100):
 				best = (pathA[iA * interval], pathB[iB * interval], distance)
 	return best
 
+def getPathCenter(path):
+	xSum = 0;
+	ySum = 0;
+	for point in path:
+		xSum += point[0]
+		ySum += point[1]
+	xAvg = float(xSum) / float(len(path))
+	yAvg = float(ySum) / float(len(path))
+	return (xAvg, yAvg)
+
 def getPathCenters(paths):
-	pathCenters = []
+	xSum = 0;
+	ySum = 0;
+	totalLength = 0
 	for path in paths:
-		xSum = 0;
-		ySum = 0;
 		for point in path:
-			xSum = xSum + point[0]
-			ySum = ySum + point[1]
-		pathCenters.append(((xSum/len(path), ySum/len(path)), path))
+			xSum += point[0]
+			ySum += point[1]
+		totalLength += len(path)
+	xAvg = float(xSum) / float(totalLength)
+	yAvg = float(ySum) / float(totalLength)
+	return (xAvg, yAvg)
 
 def connectPaths(paths, lineRate):
-	centers = getPathCenters(paths)
 	myPath = paths[0]
 	for i in range(1, len(paths)):
 		best = findShortestConnector(paths[i-1], paths[i])
@@ -230,7 +245,24 @@ def drawImage(paths):
 	img = Image.fromarray(data)
 	img.save('output.png')
 
+def produceWav(paths):
+	sound = wave.open('output.wav', 'wb')
+	sound.setnchannels(2)
+	sound.setsampwidth(2)
+	sound.setframerate(44100) #is this frames per second?
+	sound.setnframes(1)
+	pathCenter = getPathCenters(paths)
+	for i in range(100):
+		for path in paths:
+			for coord in path:
+				xVal = int((coord[0] - pathCenter[0]) * 100)
+				yVal = int((coord[1] - pathCenter[1]) * 100)
+				data = struct.pack('<hh', xVal, yVal)
+				sound.writeframesraw(data)
+	sound.close()
+
 pathStrings = getSvgPathStrings('lol.svg')
 commandLists = [getPathCommandList(path) for path in pathStrings]
-myList = [getPathFromCommandList(commandList, 100) for commandList in commandLists]
-drawImage([connectPaths(myList, 100)])
+myList = [getPathFromCommandList(commandList, 1) for commandList in commandLists]
+drawImage([connectPaths(myList, 1)])
+produceWav(myList)
