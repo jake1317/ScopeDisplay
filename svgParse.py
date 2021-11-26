@@ -210,10 +210,12 @@ def getPathCenters(paths):
 
 def connectPaths(paths, lineRate):
 	myPath = paths[0]
-	for i in range(1, len(paths)):
-		best = findShortestConnector(paths[i-1], paths[i])
-		addConnector(best[0], best[1], myPath, lineRate)
-		myPath.extend(paths[i])
+	if len(paths) > 1:
+		for i in range(1, len(paths)):
+			best = findShortestConnector(paths[i-1], paths[i])
+			addConnector(best[0], best[1], myPath, lineRate)
+			myPath.extend(paths[i])
+
 	return myPath
 
 def drawAscii(paths):
@@ -233,7 +235,7 @@ def drawAscii(paths):
 def drawImage(paths):
 	size = 1000
 	factor = 10
-	data = np.zeros((1000,2500,3), dtype=np.uint8)
+	data = np.zeros((2000,2000,3), dtype=np.uint8)
 
 	for path in paths:
 		for coord in path:
@@ -251,18 +253,24 @@ def produceWav(paths):
 	sound.setsampwidth(2)
 	sound.setframerate(44100) #is this frames per second?
 	sound.setnframes(1)
-	pathCenter = getPathCenters(paths)
-	for i in range(100):
-		for path in paths:
-			for coord in path:
-				xVal = int((coord[0] - pathCenter[0]) * 100)
-				yVal = int((coord[1] - pathCenter[1]) * 100)
-				data = struct.pack('<hh', xVal, yVal)
-				sound.writeframesraw(data)
+	pathCenterOrig = getPathCenters(paths)
+	offset = 170
+	mult = 50
+	pathCenter = pathCenterOrig
+	dataList = []
+	for path in paths:
+		for coord in path:
+			xVal = int((coord[0] - pathCenter[0]) * mult)
+			yVal = int((coord[1] - pathCenter[1]) * -mult)
+			dataList.append(struct.pack('<hh', xVal, yVal))
+
+	for i in range(1000):
+		for data in dataList:
+			sound.writeframesraw(data)
 	sound.close()
 
-pathStrings = getSvgPathStrings('lol.svg')
+pathStrings = getSvgPathStrings('friend2-01.svg')
 commandLists = [getPathCommandList(path) for path in pathStrings]
 myList = [getPathFromCommandList(commandList, 1) for commandList in commandLists]
-drawImage([connectPaths(myList, 1)])
+#drawImage([connectPaths(myList, 1)])
 produceWav(myList)
