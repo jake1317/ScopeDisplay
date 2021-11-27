@@ -1,8 +1,8 @@
-#include "../pugixml/src/pugixml.hpp"
+#include "PathExtractor.hpp"
 #include <iostream>
 
 int main(int argc, char** argv)
 {
-    std::cout << "hello!!!" << std::endl;
+    PathExtractor myExtractor{argv[0]};
     return 0;
 }
