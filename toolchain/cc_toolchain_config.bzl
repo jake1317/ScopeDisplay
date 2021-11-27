@@ -71,7 +71,10 @@ def _impl(ctx):
         ctx = ctx,
         features = features,
         cxx_builtin_include_directories = [
+            "/Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1",
+            "/Library/Developer/CommandLineTools/usr/lib/clang/12.0.5/include",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include",
+            "/Library/Developer/CommandLineTools/usr/include",
             "/usr/local/include",
         ],
         toolchain_identifier = "darwin_arm64-toolchain",
