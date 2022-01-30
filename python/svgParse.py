@@ -69,21 +69,18 @@ def getPathCommandList(pathString):
     command = pathString[0]
 
     while len(myPathString) > 0:
-        print(myPathString)
         if len(myPathString) == 1:
             pathCommandList.append((command, ""))
             break
 
         nextCommand = commandPattern.search(myPathString)
         if nextCommand:
-            print("Next")
             pathCommandList.append((command, parseFloatList(myPathString[:nextCommand.start()])))
             command = myPathString[nextCommand.start()]
             myPathString = myPathString[nextCommand.end():]
             if command == 'Z' or command == 'z':
                 pathCommandList.append((command, ""))
         else:
-            print("else")
             pathCommandList.append((command, parseFloatList(myPathString)))
             break
 
@@ -192,20 +189,73 @@ def parseCubicBezier(prevPoint, floatList, isRelative, lineRate):
         prevPoint = end
     return myPath
 
+def parseShortCubicBezier(prevPoint, prevCommand, floatList, isRelative, lineRate):
+    myPath = []
+    while len(floatList) >= 4:
+        ctrlA = getCtrlAForShortBezier(prevCommand, prevPoint)
+        ctrlB = (floatList[0], floatList[1])
+        end = (floatList[2], floatList[3])
+        if isRelative:
+            ctrlB = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
+            end = (prevPoint[0] + floatList[2], prevPoint[1] + floatList[3])
+        myPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
+        floatList = floatList[4:]
+        prevPoint = end
+    return myPath
+
+def parseQuadraticBezier(prevPoint, floatList, isRelative, lineRate):
+    myPath = []
+    while len(floatList) >= 4:
+        ctrlPt = (floatList[0], floatList[1])
+        end = (floatList[2], floatList[3])
+        if isRelative:
+            ctrlPt = (prevPoint + floatList[0], prevPoint + floatList[1])
+            end = (prevPoint + floatList[2], prevPoint + floatList[3])
+        myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
+        floatList = floatList[4:]
+        prevPoint = end
+    return myPath
+
+def parseShortQuadraticBezier(prevPoint, prevCommand, floatList, isRelative, lineRate):
+    myPath = []
+    while len(floatList) >= 2:
+        ctrlPt = getCtrlAForShortBezier(prevCommand, prevPoint)
+        end = (floatList[0], floatList[1])
+        if isRelative:
+            end = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
+        myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
+        floatList = floatList[2:]
+        prevPoint = end
+    return myPath
+
+def parseEllipticArc(prevPoint, floatList, isRelative, lineRate):
+    myPath = []
+    while len(floatList) >= 6:
+        end = (floatList[5], floatList[6])
+        if isRelative:
+            end = (prevPoint[0] + floatList[5], prevPoint[1] + floatList[6])
+        largeArc = floatList[3] == 1
+        sweepFlag = floatList[4] == 1
+        myPath.extend(computeEllipseArc(start, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
+        floatList = floatList[6:]
+        prevPoint = end
+    return myPath
+
 #TODO: Support Commands -
 # Q, T (quadratic bezier curve)
 def getPathFromCommandList(commandList, lineRate):
     myPath = []
+    initialPoint = (0,0)
     for i in range(len(commandList)):
         command, floatList = commandList[i]
         prevX, prevY = myPath[-1] if i > 0 else (0,0)
         prevPoint = myPath[-1] if i > 0 else (0,0)
-        initialPoint = (0,0)
         if command == 'M':
             myPath.append((floatList[0], floatList[1]))
             initialPoint = (floatList[0], floatList[1])
         elif command == 'm': # should actually be a new path, but don't want to deal rn
             myPath.append(((prevX + floatList[0]), (prevY + floatList[1])))
+            initialPoint = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
         elif command == 'L':
             myPath.extend(parseLCommand(prevPoint, floatList, False, lineRate))
         elif command == 'l':
@@ -223,54 +273,25 @@ def getPathFromCommandList(commandList, lineRate):
         elif command == 'c':
             myPath.extend(parseCubicBezier(prevPoint, floatList, True, lineRate))
         elif command == 'S':
-            start = (prevX, prevY)
-            ctrlA = getCtrlAForShortBezier(commandList[i-1], myPath[-1])
-            ctrlB = (floatList[0], floatList[1])
-            end = (floatList[2], floatList[3])
-            myPath.extend(computeBezier(start, ctrlA, ctrlB, end, lineRate))
+            myPath.extend(parseShortCubicBezier(prevPoint, commandList[i-1], floatList, False, lineRate))
         elif command == 's':
-            start = (prevX, prevY)
-            ctrlA = getCtrlAForShortBezier(commandList[i-1], myPath[-1])
-            ctrlB = (prevX + floatList[0], prevY + floatList[1])
-            end = (prevX + floatList[2], prevY + floatList[3])
-            myPath.extend(computeBezier(start, ctrlA, ctrlB, end, lineRate))
+            myPath.extend(parseShortCubicBezier(prevPoint, commandList[i-1], floatList, True, lineRate))
         elif command == 'Q':
-            start = (prevX, prevY)
-            end = (floatList[2], floatList[3])
-            ctrlPt = (floatList[0], floatList[1])
-            myPath.extend(computeBezier(start, ctrlPt, ctrlPt, end, lineRate))
+            myPath.extend(parseQuadraticBezier(prevPoint, floatList, False, lineRate))
         elif command == 'q':
-            start = (prevX, prevY)
-            end = (prevX + floatList[2], prevY + floatList[3])
-            ctrlPt = (prevX + floatList[0], prevY + floatList[1])
-            myPath.extend(computeBezier(start, ctrlPt, ctrlPt, end, lineRate))
+            myPath.extend(parseQuadraticBezier(prevPoint, floatList, True, lineRate))
         elif command == 'T':
-            start = (prevX, prevY)
-            end = (floatList[0], floatList[1])
-            ctrlPt = getCtrlAForShortBezier(commandList[i-1], myPath[-1])
-            myPath.extend(computeBezier(start, ctrlPt, ctrlPt, end, lineRate))
+            myPath.extend(parseShortQuadraticBezier(prevPoint, floatList, False, lineRate))
         elif command == 't':
-            start = (prevX, prevY)
-            end = (prevX + floatList[0], prevY + floatList[1])
-            ctrlPt = getCtrlAForShortBezier(commandList[i-1], myPath[-1])
-            myPath.extend(computeBezier(start, ctrlPt, ctrlPt, end, lineRate))
+            myPath.extend(parseShortQuadraticBezier(prevPoint, floatList, True, lineRate))
         elif command == 'A':
-            start = (prevX, prevY)
-            end = (floatList[5], floatList[6])
-            largeArc = floatList[3] == 1
-            sweepFlag = floatList[4] == 1
-            myPath.extend(computeEllipseArc(start, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
+            myPath.extend(parseEllipticArc(prevPoint, floatList, False, lineRate))
         elif command == 'a':
-            start = (prevX, prevY)
-            end = (prevX + floatList[5], prevY + floatList[6])
-            largeArc = floatList[3] == 1
-            sweepFlag = floatList[4] == 1
-            myPath.extend(computeEllipseArc(start, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
+            myPath.extend(parseEllipticArc(prevPoint, floatList, True, lineRate))
         elif command == 'Z' or command == 'z':
             myPath.extend(getLine(myPath[-1], initialPoint, lineRate))
         else:
-            print("sucks idk what it is! ", command)
-            return []
+            raise Exception("Unknown Command: " + command)
     return myPath
 
 def addConnector(end, start, path, lineRate):
@@ -373,11 +394,10 @@ def produceWav(pathList):
                 sound.writeframesraw(data)
     sound.close()
 
-pathStrings0 = getSvgPathStrings('../images/GORDMINVIDEO_SVG-Test-01.svg')
+pathStrings0 = getSvgPathStrings('../images/GORDMINVIDEO_SVG-Test-00.svg')
 commandLists0 = [getPathCommandList(path) for path in pathStrings0]
-#print(commandLists0)
 myList0 = [getPathFromCommandList(commandList, 2) for commandList in commandLists0]
-#drawImage(myList0)
+drawImage(myList0)
 
 #pathStrings1 = getSvgPathStrings('../images/test-10.svg')
 #commandLists1 = [getPathCommandList(path) for path in pathStrings1]
@@ -387,5 +407,5 @@ myList0 = [getPathFromCommandList(commandList, 2) for commandList in commandList
 #commandLists2 = [getPathCommandList(path) for path in pathStrings2]
 #myList2 = [getPathFromCommandList(commandList, .5) for commandList in commandLists2]
 
-combined = [myList0]
-produceWav(combined)
+#combined = [myList0]
+#produceWav(combined)
