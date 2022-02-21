@@ -145,60 +145,6 @@ def getCtrlAForShortBezier(prevCommand, prevCoordinates):
 def computeEllipseArc(start, radiusX, radiusY, rotation, largeArc, sweepFlag, end, rate):
     return getLine(start, end, rate) #TODO: actually compute this
 
-def parseShortCubicBezier(prevPoint, prevCommand, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 4:
-        ctrlA = getCtrlAForShortBezier(prevCommand, prevPoint)
-        ctrlB = (floatList[0], floatList[1])
-        end = (floatList[2], floatList[3])
-        if isRelative:
-            ctrlB = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-            end = (prevPoint[0] + floatList[2], prevPoint[1] + floatList[3])
-        myPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
-        floatList = floatList[4:]
-        prevPoint = end
-        prevCommand = 'c'
-    return myPath
-
-def parseQuadraticBezier(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 4:
-        ctrlPt = (floatList[0], floatList[1])
-        end = (floatList[2], floatList[3])
-        if isRelative:
-            ctrlPt = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-            end = (prevPoint[0] + floatList[2], prevPoint[1] + floatList[3])
-        myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
-        floatList = floatList[4:]
-        prevPoint = end
-    return myPath
-
-def parseShortQuadraticBezier(prevPoint, prevCommand, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 2:
-        ctrlPt = getCtrlAForShortBezier(prevCommand, prevPoint)
-        end = (floatList[0], floatList[1])
-        if isRelative:
-            end = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-        myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
-        floatList = floatList[2:]
-        prevPoint = end
-        prevCommand = 'q'
-    return myPath
-
-def parseEllipticArc(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 7:
-        end = (floatList[5], floatList[6])
-        if isRelative:
-            end = (prevPoint[0] + floatList[5], prevPoint[1] + floatList[6])
-        largeArc = floatList[3] == 1
-        sweepFlag = floatList[4] == 1
-        myPath.extend(computeEllipseArc(prevPoint, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
-        floatList = floatList[7:]
-        prevPoint = end
-    return myPath
-
 def inflateMovetoCommands(prevPoint, command, floatList):
     myAbsoluteList = []
     first = True
@@ -261,16 +207,61 @@ def inflateLongCurvetoCommands(prevPoint, command, floatList):
         floatList = floatList[6:]
     return myAbsoluteList
 
-def inflateShortCurvetoCommands(prevPoint, command, floatList):
+def inflateShortCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList):
     myAbsoluteList = []
     while len(floatList) >= 4:
         myFloatList = floatList[:4]
-        if command == 'c':
+        if command == 's':
             myFloatList[0] += prevPoint[0]
             myFloatList[1] += prevPoint[1]
             myFloatList[2] += prevPoint[0]
             myFloatList[3] += prevPoint[1]
+        myCtrlA = [(2 * prevPoint[0]) - prevCtrlPoint[0], (2 * prevPoint[1]) - prevCtrlPoint[1]]
+        myFloatList = myCtrlA + myFloatList
         myAbsoluteList.append(('C', myFloatList))
+        prevPoint = (myFloatList[4], myFloatList[5])
+        prevCtrlPoint = (myFloatList[2], myFloatList[3])
+        floatList = floatList[4:]
+    return myAbsoluteList
+
+def inflateLongQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 4:
+        myFloatList = floatList[:4]
+        if command == 'q':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+            myFloatList[2] += prevPoint[0]
+            myFloatList[3] += prevPoint[1]
+        myFloatList = myFloatList[:2] + myFloatList
+        myAbsoluteList.append(('C', myFloatList))
+        prevPoint = (myFloatList[4], myFloatList[5])
+        floatList = floatList[4:]
+    return myAbsoluteList
+
+def inflateShortQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 2:
+        myFloatList = floatList[:2]
+        if command == 't':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+        myCtrlA = [(2 * prevPoint[0]) - prevCtrlPoint[0], (2 * prevPoint[1]) - prevCtrlPoint[1]]
+        myFloatList = myCtrlA + myCtrlA + myFloatList
+        myAbsoluteList.append(('C', myFloatList))
+        prevPoint = (myFloatList[4], myFloatList[5])
+        prevCtrlPoint = (myFloatList[2], myFloatList[3])
+        floatList = floatList[2:]
+    return myAbsoluteList
+
+def inflateEllipseArcCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 6:
+        myFloatList = floatList[:6]
+        if command == 'a':
+            myFloatList[4] += prevPoint[0]
+            myFloatList[5] += prevPoint[1]
+        myAbsoluteList.append(('A', myFloatList))
         prevPoint = (myFloatList[4], myFloatList[5])
         floatList = floatList[6:]
     return myAbsoluteList
@@ -299,18 +290,35 @@ def inflateCommandLists(commandLists):
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'C' or command == 'c':
                 myInflatedCommands = inflateLongCurvetoCommands(prevPoint, command, floatList)
-                prevPoint = (myInflatedCommands[-1][1][0], myInflatedCommands[-1][1][1])
+                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'S' or command == 's':
-                myCurrentInflatedCommandList.append(fullCommand)
+                myPrevCommand = myCurrentInflatedCommandList[-1]
+                if myPrevCommand[0] != 'C':
+                    raise Exception("Short curves must be preceeded by a C command")
+                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3])
+                myInflatedCommands = inflateShortCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'Q' or command == 'q':
-                myCurrentInflatedCommandList.append(fullCommand)
+                myInflatedCommands = inflateLongQuadraticCurvetoCommands(prevPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'T' or command == 't':
-                myCurrentInflatedCommandList.append(fullCommand)
+                myPrevCommand = myCurrentInflatedCommandList[-1]
+                if myPrevCommand[0] != 'C':
+                    raise Exception("Short curves must be preceeded by a C command")
+                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3])
+                myInflatedCommands = inflateShortQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'A' or command == 'a':
-                myCurrentInflatedCommandList.append(fullCommand)
+                myInflatedCommands = inflateEllipseArcCommands(prevPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'Z' or command == 'z':
-                myCurrentInflatedCommandList.append(fullCommand)
+                myCurrentInflatedCommandList.append(('Z', []))
+                myPrevPoint = initialPoint
             else:
                 raise Exception("Unknown Command: " + command)
 
@@ -343,26 +351,13 @@ def getPathsFromCommandLists(commandLists, lineRate):
                 ctrlB = (floatList[2], floatList[3])
                 end = (floatList[4], floatList[5])
                 myCurrentPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
-            elif command == 'S':
-                myCurrentPath.extend(parseShortCubicBezier(prevPoint, commandList[i-1], floatList, False, lineRate))
-            elif command == 's':
-                myCurrentPath.extend(parseShortCubicBezier(prevPoint, commandList[i-1], floatList, True, lineRate))
-            elif command == 'Q':
-                myCurrentPath.extend(parseQuadraticBezier(prevPoint, floatList, False, lineRate))
-            elif command == 'q':
-                myCurrentPath.extend(parseQuadraticBezier(prevPoint, floatList, True, lineRate))
-            elif command == 'T':
-                myCurrentPath.extend(parseShortQuadraticBezier(prevPoint, floatList, False, lineRate))
-            elif command == 't':
-                myCurrentPath.extend(parseShortQuadraticBezier(prevPoint, floatList, True, lineRate))
             elif command == 'A':
-                myCurrentPath.extend(parseEllipticArc(prevPoint, floatList, False, lineRate))
-            elif command == 'a':
-                myCurrentPath.extend(parseEllipticArc(prevPoint, floatList, True, lineRate))
-            elif command == 'Z' or command == 'z':
+                largeArc = floatList[3] == 1
+                sweepFlag = floatList[4] == 1
+                end = (floatList[4], floatList[5])
+                myCurrentPath.extend(computeEllipseArc(prevPoint, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
+            elif command == 'Z':
                 myCurrentPath.extend(getLine(myCurrentPath[-1], initialPoint, lineRate))
-            elif command == 'm' or command == 'l' or command == 'H' or command == 'h' or command == 'V' or command == 'v' or command == 'c':
-                raise Exception("Should only get inflated commands!")
             else:
                 raise Exception("Unknown Command: " + command)
         myPaths.append(myCurrentPath)
