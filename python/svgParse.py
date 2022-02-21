@@ -117,31 +117,6 @@ def computeBezier(start, ctrlA, ctrlB, end, rate):
         myPath.append(getBezierCoord(getBezierCoord(start, ctrlA, ratio), getBezierCoord(ctrlB, end, ratio), ratio))
     return myPath
 
-def getCtrlAForShortBezier(prevCommand, prevCoordinates):
-    command, floatList = prevCommand
-    prevEnd = prevCoordinates
-    prevCtrlB = prevCoordinates
-    if command == 'C':
-        prevEnd = (floatList[4], floatList[5])
-        prevCtrlB = (floatList[2], floatList[3])
-    elif command == 'S':
-        prevEnd = (floatList[2], floatList[3])
-        prevCtrlB = (floatList[0], floatList[1])
-    elif command == 'c':
-        prevCtrlB = (prevEnd[0] - floatList[4] + floatList[2], prevEnd[1] - floatList[5] + floatList[3]) #TODO: maybe this is a bug
-    elif command == 's':
-        prevCtrlB = (prevEnd[0] - floatList[2] + floatList[0], prevEnd[1] - floatList[3] + floatList[1]) #TODO: maybe this is a bug
-    elif command == 'Q':
-        prevEnd = (floatList[2], floatList[3])
-        prevCtrlB = (floatList[0], floatList[1])
-    elif command == 'T' or command == 't':
-        raise Exception("Does not yet support consecutive short quadratic beziers!")
-        prevEnd = (floatList[2], floatList[3])
-        prevCtrlB = (floatList[0], floatList[1])
-    elif command == 'q':
-        raise Exception("Does not yet support relative quadratic beziers!")
-    return ((2 * prevEnd[0]) - prevCtrlB[0], (2 * prevEnd[1]) - prevCtrlB[1])
-
 def computeEllipseArc(start, radiusX, radiusY, rotation, largeArc, sweepFlag, end, rate):
     return getLine(start, end, rate) #TODO: actually compute this
 
