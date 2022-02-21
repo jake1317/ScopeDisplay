@@ -145,54 +145,6 @@ def getCtrlAForShortBezier(prevCommand, prevCoordinates):
 def computeEllipseArc(start, radiusX, radiusY, rotation, largeArc, sweepFlag, end, rate):
     return getLine(start, end, rate) #TODO: actually compute this
 
-def parseLCommand(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 2:
-        end = (floatList[0], floatList[1])
-        if isRelative:
-            end = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-        myPath.extend(getLine(prevPoint, end, lineRate))
-        floatList = floatList[2:]
-        prevPoint = end
-    return myPath
-
-def parseHCommand(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 1:
-        end = (floatList[0], prevPoint[1])
-        if isRelative:
-            end = (prevPoint[0] + floatList[0], prevPoint[1])
-        myPath.extend(getLine(prevPoint, end, lineRate))
-        floatList = floatList[1:]
-        prevPoint = end
-    return myPath
-
-def parseVCommand(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 1:
-        end = (prevPoint[0], floatList[0])
-        if isRelative:
-            end = (prevPoint[0], prevPoint[1] + floatList[0])
-        myPath.extend(getLine(prevPoint, end, lineRate))
-        floatList = floatList[1:]
-        prevPoint = end
-    return myPath
-
-def parseCubicBezier(prevPoint, floatList, isRelative, lineRate):
-    myPath = []
-    while len(floatList) >= 6:
-        ctrlA = (floatList[0], floatList[1])
-        ctrlB = (floatList[2], floatList[3])
-        end = (floatList[4], floatList[5])
-        if isRelative:
-            ctrlA = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-            ctrlB = (prevPoint[0] + floatList[2], prevPoint[1] + floatList[3])
-            end = (prevPoint[0] + floatList[4], prevPoint[1] + floatList[5])
-        myPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
-        floatList = floatList[6:]
-        prevPoint = end
-    return myPath
-
 def parseShortCubicBezier(prevPoint, prevCommand, floatList, isRelative, lineRate):
     myPath = []
     while len(floatList) >= 4:
@@ -247,6 +199,126 @@ def parseEllipticArc(prevPoint, floatList, isRelative, lineRate):
         prevPoint = end
     return myPath
 
+def inflateMovetoCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    first = True
+    while len(floatList) >= 2:
+        myCommand = 'M' if first else 'L'
+        myFloatList = floatList[:2]
+        if command == 'm':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+        myAbsoluteList.append((myCommand, myFloatList))
+        prevPoint = (myFloatList[0], myFloatList[1])
+        floatList = floatList[2:]
+        first = False
+    return myAbsoluteList
+
+def inflateLinetoCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 2:
+        myFloatList = floatList[:2]
+        if command == 'l':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+        myAbsoluteList.append(('L', myFloatList))
+        prevPoint = (myFloatList[0], myFloatList[1])
+        floatList = floatList[2:]
+    return myAbsoluteList
+
+# H and V commands will be inflated into absolute lineto commands
+def inflateHVCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 1:
+        newX = prevPoint[0]
+        newY = prevPoint[1]
+        if command == 'H':
+            newX = floatList[0]
+        elif command == 'h':
+            newX += floatList[0]
+        elif command == 'V':
+            newY = floatList[0]
+        elif command == 'v':
+            newY += floatList[0]
+        myAbsoluteList.append(('L', [newX, newY]))
+        prevpoint = (newX, newY)
+        floatList = floatList[1:]
+    return myAbsoluteList
+
+def inflateLongCurvetoCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 6:
+        myFloatList = floatList[:6]
+        if command == 'c':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+            myFloatList[2] += prevPoint[0]
+            myFloatList[3] += prevPoint[1]
+            myFloatList[4] += prevPoint[0]
+            myFloatList[5] += prevPoint[1]
+        myAbsoluteList.append(('C', myFloatList))
+        prevPoint = (myFloatList[4], myFloatList[5])
+        floatList = floatList[6:]
+    return myAbsoluteList
+
+def inflateShortCurvetoCommands(prevPoint, command, floatList):
+    myAbsoluteList = []
+    while len(floatList) >= 4:
+        myFloatList = floatList[:4]
+        if command == 'c':
+            myFloatList[0] += prevPoint[0]
+            myFloatList[1] += prevPoint[1]
+            myFloatList[2] += prevPoint[0]
+            myFloatList[3] += prevPoint[1]
+        myAbsoluteList.append(('C', myFloatList))
+        prevPoint = (myFloatList[4], myFloatList[5])
+        floatList = floatList[6:]
+    return myAbsoluteList
+
+def inflateCommandLists(commandLists):
+    myInflatedCommandLists = []
+    myCurrentInflatedCommandList = []
+    prevPoint = (0, 0)
+    initialPoint = (0, 0)
+    for commandList in commandLists:
+        myCurrentInflatedCommandList = []
+        for fullCommand in commandList:
+            command, floatList = fullCommand
+            if command == 'M' or command == 'm':
+                myInflatedCommands = inflateMovetoCommands(prevPoint, command, floatList)
+                initialPoint = (myInflatedCommands[0][1][0], myInflatedCommands[0][1][1])
+                prevPoint = (myInflatedCommands[-1][1][0], myInflatedCommands[-1][1][1])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
+            elif command == 'L' or command == 'l':
+                myInflatedCommands = inflateLinetoCommands(prevPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][0], myInflatedCommands[-1][1][1])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
+            elif command == 'H' or command == 'h' or command == 'V' or command == 'v':
+                myInflatedCommands = inflateHVCommands(prevPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][0], myInflatedCommands[-1][1][1])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
+            elif command == 'C' or command == 'c':
+                myInflatedCommands = inflateLongCurvetoCommands(prevPoint, command, floatList)
+                prevPoint = (myInflatedCommands[-1][1][0], myInflatedCommands[-1][1][1])
+                myCurrentInflatedCommandList.extend(myInflatedCommands)
+            elif command == 'S' or command == 's':
+                myCurrentInflatedCommandList.append(fullCommand)
+            elif command == 'Q' or command == 'q':
+                myCurrentInflatedCommandList.append(fullCommand)
+            elif command == 'T' or command == 't':
+                myCurrentInflatedCommandList.append(fullCommand)
+            elif command == 'A' or command == 'a':
+                myCurrentInflatedCommandList.append(fullCommand)
+            elif command == 'Z' or command == 'z':
+                myCurrentInflatedCommandList.append(fullCommand)
+            else:
+                raise Exception("Unknown Command: " + command)
+
+        myInflatedCommandLists.append(myCurrentInflatedCommandList)
+
+    return myInflatedCommandLists
+
+
 def getPathsFromCommandLists(commandLists, lineRate):
     myPaths = []
     myCurrentPath = []
@@ -263,27 +335,14 @@ def getPathsFromCommandLists(commandLists, lineRate):
             if command == 'M':
                 initialPoint = (floatList[0], floatList[1])
                 myCurrentPath.append(initialPoint)
-            elif command == 'm':
-                myPaths.append(myCurrentPath)
-                myCurrentPath = []
-                initialPoint = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
-                myCurrentPath.append(initialPoint)
             elif command == 'L':
-                myCurrentPath.extend(parseLCommand(prevPoint, floatList, False, lineRate))
-            elif command == 'l':
-                myCurrentPath.extend(parseLCommand(prevPoint, floatList, True, lineRate))
-            elif command == 'H':
-                myCurrentPath.extend(parseHCommand(prevPoint, floatList, False, lineRate))
-            elif command == 'h':
-                myCurrentPath.extend(parseHCommand(prevPoint, floatList, True, lineRate))
-            elif command == 'V':
-                myCurrentPath.extend(parseVCommand(prevPoint, floatList, False, lineRate))
-            elif command == 'v':
-                myCurrentPath.extend(parseVCommand(prevPoint, floatList, True, lineRate))
+                end = (floatList[0], floatList[1])
+                myCurrentPath.extend(getLine(prevPoint, end, lineRate))
             elif command == 'C':
-                myCurrentPath.extend(parseCubicBezier(prevPoint, floatList, False, lineRate))
-            elif command == 'c':
-                myCurrentPath.extend(parseCubicBezier(prevPoint, floatList, True, lineRate))
+                ctrlA = (floatList[0], floatList[1])
+                ctrlB = (floatList[2], floatList[3])
+                end = (floatList[4], floatList[5])
+                myCurrentPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
             elif command == 'S':
                 myCurrentPath.extend(parseShortCubicBezier(prevPoint, commandList[i-1], floatList, False, lineRate))
             elif command == 's':
@@ -302,6 +361,8 @@ def getPathsFromCommandLists(commandLists, lineRate):
                 myCurrentPath.extend(parseEllipticArc(prevPoint, floatList, True, lineRate))
             elif command == 'Z' or command == 'z':
                 myCurrentPath.extend(getLine(myCurrentPath[-1], initialPoint, lineRate))
+            elif command == 'm' or command == 'l' or command == 'H' or command == 'h' or command == 'V' or command == 'v' or command == 'c':
+                raise Exception("Should only get inflated commands!")
             else:
                 raise Exception("Unknown Command: " + command)
         myPaths.append(myCurrentPath)
@@ -412,7 +473,7 @@ if len(sys.argv) < 2:
 myImg = sys.argv[1]
 pathStrings = getSvgPathStrings(myImg)
 commandLists = [getPathCommandList(path) for path in pathStrings]
-myList = getPathsFromCommandLists(commandLists, 2)
+myList = getPathsFromCommandLists(inflateCommandLists(commandLists), 2)
 drawImage(myList)
 
 #combined = [myList0]
