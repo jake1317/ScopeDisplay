@@ -10,15 +10,19 @@ import struct
 import sys
 
 def splitPathStringList(concatString):
+    whitespacePattern = re.compile('\s+')
+    subpathEndPattern = re.compile('[Zz]\s+')
+    myCondensedWhitespace = whitespacePattern.sub(" ", concatString)
+    myConcatString = subpathEndPattern.sub("z", myCondensedWhitespace)
     endPattern = re.compile('[Zz]')
     pathList = []
-    while len(concatString) > 0:
-        endSearch = endPattern.search(concatString)
+    while len(myConcatString) > 0:
+        endSearch = endPattern.search(myConcatString)
         if endSearch:
-            pathList.append(concatString[:endSearch.end()])
-            concatString = concatString[endSearch.end():]
+            pathList.append(myConcatString[:endSearch.end()])
+            myConcatString = myConcatString[endSearch.end():]
         else:
-            pathList.append(concatString)
+            pathList.append(myConcatString)
             return pathList
     return pathList
 
@@ -406,18 +410,10 @@ def produceWav(pathList):
 if len(sys.argv) < 2:
     raise Exception("Must provide svg path!")
 myImg = sys.argv[1]
-pathStrings0 = getSvgPathStrings(myImg)
-commandLists0 = [getPathCommandList(path) for path in pathStrings0]
-myList = getPathsFromCommandLists(commandLists0, 2)
+pathStrings = getSvgPathStrings(myImg)
+commandLists = [getPathCommandList(path) for path in pathStrings]
+myList = getPathsFromCommandLists(commandLists, 2)
 drawImage(myList)
-
-#pathStrings1 = getSvgPathStrings('../images/test-10.svg')
-#commandLists1 = [getPathCommandList(path) for path in pathStrings1]
-#myList1 = [getPathFromCommandList(commandList, .5) for commandList in commandLists1]
-
-#pathStrings2 = getSvgPathStrings('../images/002.svg')
-#commandLists2 = [getPathCommandList(path) for path in pathStrings2]
-#myList2 = [getPathFromCommandList(commandList, .5) for commandList in commandLists2]
 
 #combined = [myList0]
 #produceWav(combined)
