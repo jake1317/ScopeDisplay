@@ -97,8 +97,8 @@ def getLine(start, end, rate):
     linePath = []
     distance = getDistance(start, end)
     numPoints = int(rate * distance) + 1
-    slopeIncrement = ((end[0] - start[0])/numPoints, (end[1] - start[1])/numPoints)
-    for i in range(1, numPoints):
+    slopeIncrement = ((end[0] - start[0])/float(numPoints), (end[1] - start[1])/float(numPoints))
+    for i in range(1, numPoints + 1):
         x = start[0] + (i * slopeIncrement[0])
         y = start[1] + (i * slopeIncrement[1])
         linePath.append((x, y))
