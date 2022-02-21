@@ -7,6 +7,7 @@ import scipy.misc as smp
 import wave
 import random
 import struct
+import sys
 
 def splitPathStringList(concatString):
     endPattern = re.compile('[Zz]')
@@ -37,8 +38,9 @@ def getFloats(floatString):
     if decimalCount >= 2:
         retList = []
         splitString = floatString.split('.')
-        for decimal in splitString[1:]:
-            retList.append(float(splitString[0]+decimal))
+        retList.append(float(splitString[0]+"."+splitString[1]))
+        for decimal in splitString[2:]:
+            retList.append(float("0."+decimal))
         return retList
 
 def parseFloatList(floatString):
@@ -83,7 +85,6 @@ def getPathCommandList(pathString):
         else:
             pathCommandList.append((command, parseFloatList(myPathString)))
             break
-
     return pathCommandList
 
 def getDistance(start, end):
@@ -201,6 +202,7 @@ def parseShortCubicBezier(prevPoint, prevCommand, floatList, isRelative, lineRat
         myPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
         floatList = floatList[4:]
         prevPoint = end
+        prevCommand = 'c'
     return myPath
 
 def parseQuadraticBezier(prevPoint, floatList, isRelative, lineRate):
@@ -209,8 +211,8 @@ def parseQuadraticBezier(prevPoint, floatList, isRelative, lineRate):
         ctrlPt = (floatList[0], floatList[1])
         end = (floatList[2], floatList[3])
         if isRelative:
-            ctrlPt = (prevPoint + floatList[0], prevPoint + floatList[1])
-            end = (prevPoint + floatList[2], prevPoint + floatList[3])
+            ctrlPt = (prevPoint[0] + floatList[0], prevPoint[1] + floatList[1])
+            end = (prevPoint[0] + floatList[2], prevPoint[1] + floatList[3])
         myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
         floatList = floatList[4:]
         prevPoint = end
@@ -226,23 +228,22 @@ def parseShortQuadraticBezier(prevPoint, prevCommand, floatList, isRelative, lin
         myPath.extend(computeBezier(prevPoint, ctrlPt, ctrlPt, end, lineRate))
         floatList = floatList[2:]
         prevPoint = end
+        prevCommand = 'q'
     return myPath
 
 def parseEllipticArc(prevPoint, floatList, isRelative, lineRate):
     myPath = []
-    while len(floatList) >= 6:
+    while len(floatList) >= 7:
         end = (floatList[5], floatList[6])
         if isRelative:
             end = (prevPoint[0] + floatList[5], prevPoint[1] + floatList[6])
         largeArc = floatList[3] == 1
         sweepFlag = floatList[4] == 1
-        myPath.extend(computeEllipseArc(start, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
-        floatList = floatList[6:]
+        myPath.extend(computeEllipseArc(prevPoint, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
+        floatList = floatList[7:]
         prevPoint = end
     return myPath
 
-#TODO: Support Commands -
-# Q, T (quadratic bezier curve)
 def getPathFromCommandList(commandList, lineRate):
     myPath = []
     initialPoint = (0,0)
@@ -357,15 +358,15 @@ def drawAscii(paths):
         print('')
 
 def drawImage(paths):
-    size = 1000
-    factor = 5
-    data = np.zeros((2000,2000,3), dtype=np.uint8)
+    size = 2000
+    factor = 2
+    data = np.zeros((size,size,3), dtype=np.uint8)
 
     for path in paths:
         for coord in path:
             x = int(coord[0] * factor)
             y = int(coord[1] * factor)
-            if y < len(data) and x < len(data[0]):
+            if y > 0 and y < size and x > 0 and x < size:
                 data[y][x] = [255, 255, 255]
 
     img = Image.fromarray(data)
@@ -394,7 +395,10 @@ def produceWav(pathList):
                 sound.writeframesraw(data)
     sound.close()
 
-pathStrings0 = getSvgPathStrings('../images/GORDMINVIDEO_SVG-Test-00.svg')
+if len(sys.argv) < 2:
+    raise Exception("Must provide svg path!")
+myImg = sys.argv[1]
+pathStrings0 = getSvgPathStrings(myImg)
 commandLists0 = [getPathCommandList(path) for path in pathStrings0]
 myList0 = [getPathFromCommandList(commandList, 2) for commandList in commandLists0]
 drawImage(myList0)
