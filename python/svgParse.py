@@ -231,14 +231,14 @@ def inflateShortQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floa
 
 def inflateEllipseArcCommands(prevPoint, command, floatList):
     myAbsoluteList = []
-    while len(floatList) >= 6:
-        myFloatList = floatList[:6]
+    while len(floatList) >= 7:
+        myFloatList = floatList[:7]
         if command == 'a':
-            myFloatList[4] += prevPoint[0]
-            myFloatList[5] += prevPoint[1]
+            myFloatList[5] += prevPoint[0]
+            myFloatList[6] += prevPoint[1]
         myAbsoluteList.append(('A', myFloatList))
-        prevPoint = (myFloatList[4], myFloatList[5])
-        floatList = floatList[6:]
+        prevPoint = (myFloatList[5], myFloatList[6])
+        floatList = floatList[7:]
     return myAbsoluteList
 
 def inflateCommandLists(commandLists):
@@ -289,11 +289,11 @@ def inflateCommandLists(commandLists):
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'A' or command == 'a':
                 myInflatedCommands = inflateEllipseArcCommands(prevPoint, command, floatList)
-                prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
+                prevPoint = (myInflatedCommands[-1][1][5], myInflatedCommands[-1][1][6])
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'Z' or command == 'z':
                 myCurrentInflatedCommandList.append(('Z', []))
-                myPrevPoint = initialPoint
+                prevPoint = initialPoint
             else:
                 raise Exception("Unknown Command: " + command)
 
@@ -329,7 +329,7 @@ def getPathsFromCommandLists(commandLists, lineRate):
             elif command == 'A':
                 largeArc = floatList[3] == 1
                 sweepFlag = floatList[4] == 1
-                end = (floatList[4], floatList[5])
+                end = (floatList[5], floatList[6])
                 myCurrentPath.extend(computeEllipseArc(prevPoint, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
             elif command == 'Z':
                 myCurrentPath.extend(getLine(myCurrentPath[-1], initialPoint, lineRate))
