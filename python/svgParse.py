@@ -199,7 +199,7 @@ def inflateShortCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList):
         floatList = floatList[4:]
     return myAbsoluteList
 
-def inflateLongQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList):
+def inflateLongQuadraticCurvetoCommands(prevPoint, command, floatList):
     myAbsoluteList = []
     while len(floatList) >= 4:
         myFloatList = floatList[:4]
@@ -269,9 +269,7 @@ def inflateCommandLists(commandLists):
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'S' or command == 's':
                 myPrevCommand = myCurrentInflatedCommandList[-1]
-                if myPrevCommand[0] != 'C':
-                    raise Exception("Short curves must be preceeded by a C command")
-                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3])
+                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3]) if myPrevCommand[0] == 'C' else prevPoint
                 myInflatedCommands = inflateShortCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList)
                 prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
@@ -281,9 +279,7 @@ def inflateCommandLists(commandLists):
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
             elif command == 'T' or command == 't':
                 myPrevCommand = myCurrentInflatedCommandList[-1]
-                if myPrevCommand[0] != 'C':
-                    raise Exception("Short curves must be preceeded by a C command")
-                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3])
+                prevCtrlPoint = (myPrevCommand[1][2], myPrevCommand[1][3]) if myPrevCommand[0] == 'C' else prevPoint
                 myInflatedCommands = inflateShortQuadraticCurvetoCommands(prevPoint, prevCtrlPoint, command, floatList)
                 prevPoint = (myInflatedCommands[-1][1][4], myInflatedCommands[-1][1][5])
                 myCurrentInflatedCommandList.extend(myInflatedCommands)
@@ -385,20 +381,6 @@ def connectPaths(paths, lineRate):
             myPath.extend(paths[i])
 
     return myPath
-
-def drawAscii(paths):
-    factor = 1
-    canvas = [[' ' for i in range(250 * factor)] for j in range(100 * factor)]
-    for path in paths:
-        for coord in path:
-            x = int(coord[0] * factor)
-            y = int(coord[1] * factor)
-            if y < len(canvas) and x < len(canvas[0]):
-                canvas[y][x] = 'X'
-    for row in canvas:
-        for char in row:
-            print(char, end='')
-        print('')
 
 def drawImage(paths):
     size = 2000
