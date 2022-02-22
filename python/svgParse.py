@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import re
 import math
 from PIL import Image
+from math import sqrt, cos, sin, acos, degrees, radians, log, pi
 import numpy as np
 import scipy.misc as smp
 import wave
@@ -112,13 +113,93 @@ def getBezierCoord(pointA, pointB, ratio):
 def computeBezier(start, ctrlA, ctrlB, end, rate):
     myPath = []
     numPoints = int(rate * getDistance(start, end)) + 1
-    for i in range(1, numPoints):
+    for i in range(1, numPoints + 1):
         ratio = i / float(numPoints)
         myPath.append(getBezierCoord(getBezierCoord(start, ctrlA, ratio), getBezierCoord(ctrlB, end, ratio), ratio))
     return myPath
 
+
+
+# This math is heavily borrowed from https://github.com/regebro/svg.path
 def computeEllipseArc(start, radiusX, radiusY, rotation, largeArc, sweepFlag, end, rate):
-    return getLine(start, end, rate) #TODO: actually compute this
+    if start == end:
+        return []
+    if radiusX == 0 or radiusY == 0:
+        return getLine(start, end, rate)
+    rotation = rotation % 360
+
+    cosr = cos(radians(rotation))
+    sinr = sin(radians(rotation))
+    deltaX = (start[0] - end[0]) / 2
+    deltaY = (start[1] - end[1]) / 2
+    x1prime = cosr * deltaX + sinr * deltaY
+    x1prime_squared = x1prime * x1prime
+    y1prime = -sinr * deltaX + cosr * deltaY
+    y1prime_squared = y1prime * y1prime
+    radiusX_squared = radiusX * radiusX
+    radiusY_squared = radiusY * radiusY
+
+    # Correct out of range radii
+    radius_scale = (x1prime_squared / radiusX_squared) + (y1prime_squared / radiusY_squared)
+    if radius_scale > 1:
+        radius_scale = sqrt(radius_scale)
+        radiusX *= radius_scale
+        radiusY *= radius_scale
+        radiusX_squared = radiusX * radiusX
+        radiusY_squared = radiusY * radiusY
+    else:
+        radius_scale = 1
+
+    t1 = radiusX_squared * y1prime_squared
+    t2 = radiusY_squared * x1prime_squared
+    c = sqrt(abs((radiusX_squared * radiusY_squared - t1 - t2) / (t1 + t2)))
+
+    if largeArc == sweepFlag:
+        c = -c
+
+    cxprime = c * radiusX * y1prime / radiusY
+    cyprime = -c * radiusY * x1prime / radiusX
+    center = ((cosr * cxprime - sinr * cyprime) + ((start[0] + end[0]) / 2),
+              (sinr * cxprime + cosr * cyprime) + ((start[1] + end[1]) / 2))
+
+    ux = (x1prime - cxprime) / radiusX
+    uy = (y1prime - cyprime) / radiusY
+    vx = (-x1prime - cxprime) / radiusX
+    vy = (-y1prime - cyprime) / radiusY
+    n = sqrt(ux * ux + uy * uy)
+    p = ux
+    theta = degrees(acos(p / n))
+    if uy < 0:
+        theta = -theta
+    theta = theta % 360
+
+    n = sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy))
+    p = ux * vx + uy * vy
+    d = p / n
+    if d > 1.0:
+        d = 1.0
+    elif d < -1.0:
+        d = -1.0
+
+    delta = degrees(acos(d))
+    if (ux * vy - uy * vx) < 0:
+        delta = -delta
+    delta = delta % 360
+    if not sweepFlag:
+        delta -= 360
+
+    length = getDistance(start, end) # Major oversimlification
+    numPoints = int(rate * getDistance(start, end)) + 1
+
+    myPath = []
+    for i in range(1, numPoints + 1):
+        pos = i / float(numPoints)
+        angle = radians(theta + (delta * pos))
+        x = (cosr * cos(angle) * radiusX) - (sinr * sin(angle) * radiusY) + center[0]
+        y = (sinr * cos(angle) * radiusX) + (cosr * sin(angle) * radiusY) + center[1]
+        myPath.append((x,y))
+
+    return myPath
 
 def inflateMovetoCommands(prevPoint, command, floatList):
     myAbsoluteList = []
@@ -323,8 +404,8 @@ def getPathsFromCommandLists(commandLists, lineRate):
                 end = (floatList[4], floatList[5])
                 myCurrentPath.extend(computeBezier(prevPoint, ctrlA, ctrlB, end, lineRate))
             elif command == 'A':
-                largeArc = floatList[3] == 1
-                sweepFlag = floatList[4] == 1
+                largeArc = floatList[3] != 0
+                sweepFlag = floatList[4] != 0
                 end = (floatList[5], floatList[6])
                 myCurrentPath.extend(computeEllipseArc(prevPoint, floatList[0], floatList[1], floatList[2], largeArc, sweepFlag, end, lineRate))
             elif command == 'Z':
