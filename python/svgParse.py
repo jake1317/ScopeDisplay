@@ -8,7 +8,8 @@ import scipy.misc as smp
 import wave
 import random
 import struct
-import sys
+from os import walk
+import argparse
 
 def splitPathStringList(concatString):
     whitespacePattern = re.compile('\s+')
@@ -463,7 +464,10 @@ def connectPaths(paths, lineRate):
 
     return myPath
 
-def drawImage(paths):
+def drawImage(paths, targetFile):
+    if len(paths) == 0:
+        return
+
     size = 2000
     factor = 2
     data = np.zeros((size,size,3), dtype=np.uint8)
@@ -476,38 +480,80 @@ def drawImage(paths):
                 data[y][x] = [255, 255, 255]
 
     img = Image.fromarray(data)
-    img.save('output.png')
+    img.save(targetFile + '.png')
 
-def produceWav(pathList):
-    sound = wave.open('output.wav', 'wb')
+def produceWav(pathList, targetFile, frameLoops, animationLoops, amplitude):
+    sound = wave.open(targetFile + '.wav', 'wb')
     sound.setnchannels(2)
     sound.setsampwidth(2)
     sound.setframerate(44100) #is this frames per second?
     sound.setnframes(1)
-    for paths in pathList:
-        pathCenterOrig = getPathCenters(paths)
-        offset = 170
-        mult = 50
-        pathCenter = pathCenterOrig
-        dataList = []
-        for path in paths:
-            for coord in path:
-                xVal = int((coord[0] - pathCenter[0]) * mult)
-                yVal = int((coord[1] - pathCenter[1]) * -mult)
-                dataList.append(struct.pack('<hh', xVal, yVal))
+    for outerLoop in range(animationLoops):
+        for paths in pathList:
+            pathCenterOrig = getPathCenters(paths)
+            amplitude = 50
+            pathCenter = pathCenterOrig
+            dataList = []
+            for path in paths:
+                for coord in path:
+                    xVal = int((coord[0] - pathCenter[0]) * amplitude)
+                    yVal = int((coord[1] - pathCenter[1]) * -amplitude)
+                    dataList.append(struct.pack('<hh', xVal, yVal))
 
-        for i in range(1000):
-            for data in dataList:
-                sound.writeframesraw(data)
+            for i in range(frameLoops):
+                for data in dataList:
+                    sound.writeframesraw(data)
     sound.close()
 
-if len(sys.argv) < 2:
-    raise Exception("Must provide svg path!")
-myImg = sys.argv[1]
-pathStrings = getSvgPathStrings(myImg)
-commandLists = [getPathCommandList(path) for path in pathStrings]
-myList = getPathsFromCommandLists(inflateCommandLists(commandLists), 2)
-drawImage(myList)
+def getFilesFromDir(dirPath):
+    svgPaths = []
+    numPattern = re.compile("[0-9]+")
+    for (dirpath, dirnames, filenames) in walk(dirPath):
+        for file in filenames:
+            if file[-4:] != '.svg':
+                continue
+            numSearch = numPattern.search(file)
+            fileNum = int(numSearch[0]) if numSearch else 0
+            svgPaths.append(((dirpath+'/'+file), file, fileNum))
+    return [(tup[0], tup[1]) for tup in sorted(svgPaths, key= lambda x: x[2])]
 
-#combined = [myList0]
-#produceWav(combined)
+def stripFileExtention(file):
+    for i in range(len(file)-1, -1, -1):
+        if file[i] == '.':
+            return file[:i]
+    return file
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description="Svg parser arguments")
+    parser.add_argument('--svgdir', type=str, nargs=1, required=True, help='Path to directory containing svgs')
+    parser.add_argument('--animate', action='store_true', help='Treat each svg as frame in animation, will order by number in filename')
+    parser.add_argument('--rate', type=float, nargs=1, default=1, help='Rate at which paths will be drawn')
+    parser.add_argument('--amplitude', type=float, nargs=1, default=50, help='Coefficient to apply to waveform magnitudes')
+    parser.add_argument('--frameloops', type=int, nargs=1, default=1, help='Number of times each frame path is looped')
+    parser.add_argument('--animationloops', type=int, nargs=1, default=1, help='Treat each svg as frame in animation, will order by number in filename')
+    parser.add_argument('--png', action='store_true', help='In addition to audio output, produce image of path')
+    parser.add_argument('--targetdir', type=str, nargs=1, default='', help='Path to directory of output files')
+    return parser.parse_args()
+
+def main():
+    args = parseArgs()
+    files = getFilesFromDir(args.svgdir[0])
+    pathList = []
+    for (fullPath, fileName) in files:
+        pathStrings = getSvgPathStrings(fullPath)
+        if len(pathStrings) == 0:
+            raise Exception("Could not find any valid paths in SVG! " + fileName)
+        commandLists = [getPathCommandList(path) for path in pathStrings]
+        myPaths = getPathsFromCommandLists(inflateCommandLists(commandLists), args.rate)
+        targetFile = args.targetdir + stripFileExtention(fileName)
+        if args.png:
+            drawImage(myPaths, targetFile)
+        if args.animate:
+            pathList.append(myPaths)
+        else:
+            produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
+    if len(pathList) > 0:
+        targetFile = args.targetdir + 'animation'
+        produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
+
+main()
