@@ -539,13 +539,21 @@ def main():
     args = parseArgs()
     files = getFilesFromDir(args.svgdir[0])
     pathList = []
+    if len(files) == 0:
+        raise Exception("Could not find any files in specified path!!")
+    targetDir = ''
+    if len(args.targetdir) != 0:
+        targetDir = args.targetdir[0]
+        if targetDir[-1] != '/':
+            targetDir += '/'
     for (fullPath, fileName) in files:
         pathStrings = getSvgPathStrings(fullPath)
         if len(pathStrings) == 0:
             raise Exception("Could not find any valid paths in SVG! " + fileName)
         commandLists = [getPathCommandList(path) for path in pathStrings]
         myPaths = getPathsFromCommandLists(inflateCommandLists(commandLists), args.rate)
-        targetFile = args.targetdir + stripFileExtention(fileName)
+        targetFile = targetDir + stripFileExtention(fileName)
+        print(targetFile)
         if args.png:
             drawImage(myPaths, targetFile)
         if args.animate:
@@ -553,7 +561,7 @@ def main():
         else:
             produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
     if len(pathList) > 0:
-        targetFile = args.targetdir + 'animation'
+        targetFile = targetDir + 'animation'
         produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
 
 main()
