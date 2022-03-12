@@ -549,6 +549,9 @@ def main():
     frameLoops = 1
     if len(args.frameloops) != 0:
         frameLoops = args.frameloops[0]
+    animationLoops = 1
+    if len(args.animationloops) != 0:
+        animationLoops = args.animationLoops[0]
     for (fullPath, fileName) in files:
         pathStrings = getSvgPathStrings(fullPath)
         if len(pathStrings) == 0:
@@ -561,9 +564,9 @@ def main():
         if args.animate:
             pathList.append(myPaths)
         else:
-            produceWav([myPaths], targetFile, frameLoops, args.animationloops, args.amplitude)
+            produceWav([myPaths], targetFile, frameLoops, animationLoops, args.amplitude)
     if len(pathList) > 0:
         targetFile = targetDir + 'animation'
-        produceWav([myPaths], targetFile, frameLoops, args.animationloops, args.amplitude)
+        produceWav([myPaths], targetFile, frameLoops, animationLoops, args.amplitude)
 
 main()
