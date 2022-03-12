@@ -546,6 +546,9 @@ def main():
         targetDir = args.targetdir[0]
         if targetDir[-1] != '/':
             targetDir += '/'
+    frameLoops = 1
+    if len(args.frameloops) != 0:
+        frameLoops = args.frameloops[0]
     for (fullPath, fileName) in files:
         pathStrings = getSvgPathStrings(fullPath)
         if len(pathStrings) == 0:
@@ -553,15 +556,14 @@ def main():
         commandLists = [getPathCommandList(path) for path in pathStrings]
         myPaths = getPathsFromCommandLists(inflateCommandLists(commandLists), args.rate)
         targetFile = targetDir + stripFileExtention(fileName)
-        print(targetFile)
         if args.png:
             drawImage(myPaths, targetFile)
         if args.animate:
             pathList.append(myPaths)
         else:
-            produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
+            produceWav([myPaths], targetFile, frameLoops, args.animationloops, args.amplitude)
     if len(pathList) > 0:
         targetFile = targetDir + 'animation'
-        produceWav([myPaths], targetFile, args.frameloops, args.animationloops, args.amplitude)
+        produceWav([myPaths], targetFile, frameLoops, args.animationloops, args.amplitude)
 
 main()
