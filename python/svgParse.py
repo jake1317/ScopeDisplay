@@ -547,11 +547,11 @@ def main():
         if targetDir[-1] != '/':
             targetDir += '/'
     frameLoops = 1
-    if len(args.frameloops) != 0:
+    if args.frameloops != 1:
         frameLoops = args.frameloops[0]
     animationLoops = 1
-    if len(args.animationloops) != 0:
-        animationLoops = args.animationLoops[0]
+    if args.animationloops != 1:
+        animationLoops = args.animationloops[0]
     for (fullPath, fileName) in files:
         pathStrings = getSvgPathStrings(fullPath)
         if len(pathStrings) == 0:
