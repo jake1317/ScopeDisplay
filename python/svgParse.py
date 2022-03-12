@@ -536,7 +536,6 @@ def parseArgs():
     return parser.parse_args()
 
 def main():
-    print("hi :)")
     args = parseArgs()
     files = getFilesFromDir(args.svgdir[0])
     pathList = []
