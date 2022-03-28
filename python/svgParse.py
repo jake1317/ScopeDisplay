@@ -508,6 +508,9 @@ def produceWav(pathList, targetFile, frameLoops, animationLoops, amplitude):
 def getFilesFromDir(dirPath):
     svgPaths = []
     numPattern = re.compile("[0-9]+")
+    if dirPath[-4:] == '.svg':
+        split = dirPath.split('/')
+        return [(dirPath, split[-1])]
     for (dirpath, dirnames, filenames) in walk(dirPath):
         for file in filenames:
             if file[-4:] != '.svg':
