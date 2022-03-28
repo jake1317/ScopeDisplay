@@ -491,7 +491,6 @@ def produceWav(pathList, targetFile, frameLoops, animationLoops, amplitude):
     for outerLoop in range(animationLoops):
         for paths in pathList:
             pathCenterOrig = getPathCenters(paths)
-            amplitude = 50
             pathCenter = pathCenterOrig
             dataList = []
             for path in paths:
@@ -552,6 +551,9 @@ def main():
     frameLoops = 1
     if args.frameloops != 1:
         frameLoops = args.frameloops[0]
+    amplitude = 50
+    if args.amplitude != 50:
+        amplitude = args.amplitude[0]
     animationLoops = 1
     if args.animationloops != 1:
         animationLoops = args.animationloops[0]
@@ -567,9 +569,9 @@ def main():
         if args.animate:
             pathList.append(myPaths)
         else:
-            produceWav([myPaths], targetFile, frameLoops, animationLoops, args.amplitude)
+            produceWav([myPaths], targetFile, frameLoops, animationLoops, amplitude)
     if len(pathList) > 0:
         targetFile = targetDir + 'animation'
-        produceWav([myPaths], targetFile, frameLoops, animationLoops, args.amplitude)
+        produceWav([myPaths], targetFile, frameLoops, animationLoops, amplitude)
 
 main()
