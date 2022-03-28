@@ -554,6 +554,9 @@ def main():
     amplitude = 50
     if args.amplitude != 50:
         amplitude = args.amplitude[0]
+    rate = 1
+    if args.rate != 1:
+        rate = args.rate[0]
     animationLoops = 1
     if args.animationloops != 1:
         animationLoops = args.animationloops[0]
@@ -562,7 +565,7 @@ def main():
         if len(pathStrings) == 0:
             raise Exception("Could not find any valid paths in SVG! " + fileName)
         commandLists = [getPathCommandList(path) for path in pathStrings]
-        myPaths = getPathsFromCommandLists(inflateCommandLists(commandLists), args.rate)
+        myPaths = getPathsFromCommandLists(inflateCommandLists(commandLists), rate)
         targetFile = targetDir + stripFileExtention(fileName)
         if args.png:
             drawImage(myPaths, targetFile)
